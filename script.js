@@ -1,15 +1,11 @@
-
-// {valid: true:|false
-//     error?: {
-//       code: 4001 / 4300 / 4200 //https://arc.algorand.foundation/ARCs/arc-0001
-//       message: "message"
-//     }
-//   }
-
 class TxnVerifer{
   constructor(){
-    this.errorCheck = {valid:true,
-                      error:[]};
+    this.errorCheck = 
+    {   
+      valid:true,
+      error:[],
+      warnings:[]
+    };
     this.max64 = (2**64)-1;
     this.idTable= {"mainnet-v1.0":"wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
         "testnet-v1.0":	"SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=",
@@ -28,8 +24,14 @@ class TxnVerifer{
         this.throw(4300, 'Required field missing: '+requirement);
       } else {
         if(requirement === "fee"){
+          const fee = requirement
           if(!Number.isInteger(txn[requirement]) || txn[requirement]<1000 || txn[requirement]>this.max64){
             this.throw(4300,'fee must be a uint64 between 1000 and 18446744073709551615');
+          }
+          else{
+            if(txn[fee] > 1000000){
+              this.errorCheck.warnings.push('fee is very high: '+txn[fee]+' microalgos');
+            }
           }
         }
         if(requirement === "fv"){
@@ -94,6 +96,8 @@ class TxnVerifer{
           if(option === "rekey"){
             if(!algosdk.isValidAddress(txn[option])){
               this.throw(4300, 'rekey must be a valid authorized address');
+            } else {
+              this.errorCheck.warnings.push('this transaction involves rekeying');
             }
           }
         }
@@ -134,31 +138,33 @@ class TxnVerifer{
               this.throw(4300, 'apar.df must be a boolean')
             }
           }
-          for (opt of AssetParamsOpt){
-            if(txn.apar.hasOwnProperty(opt)){
-              if(opt === "un"){
-                if(typeof txn.apar[opt] !== "string" || this.stringBytes(txn.apar[opt])>8){
-                  this.throw(4300, 'apar.un must be a string that is 8 bytes or less');
+          if(txn.apar){
+            for (opt of AssetParamsOpt){
+              if(txn.apar.hasOwnProperty(opt)){
+                if(opt === "un"){
+                  if(typeof txn.apar[opt] !== "string" || this.stringBytes(txn.apar[opt])>8){
+                    this.throw(4300, 'apar.un must be a string that is 8 bytes or less');
+                  }
                 }
-              }
-              if(opt === "an"){
-                if(typeof txn.apar[opt] !== "string" || this.stringBytes(txn.apar[opt])>32){
-                  this.throw(4300, 'apar.an must be a string that is 32 bytes or less');
+                if(opt === "an"){
+                  if(typeof txn.apar[opt] !== "string" || this.stringBytes(txn.apar[opt])>32){
+                    this.throw(4300, 'apar.an must be a string that is 32 bytes or less');
+                  }
                 }
-              }
-              if(opt === "au"){
-                if(typeof txn.apar[opt] !== "string" || this.stringBytes(txn.apar[opt])>96){
-                  this.throw(4300, 'apar.au must be a string that is 96 bytes or less');
+                if(opt === "au"){
+                  if(typeof txn.apar[opt] !== "string" || this.stringBytes(txn.apar[opt])>96){
+                    this.throw(4300, 'apar.au must be a string that is 96 bytes or less');
+                  }
                 }
-              }
-              if(opt === "am"){
-                if(txn.apar[opt].byteLength === undefined){
-                  this.throw(4300, 'apar.am must be a UintArray, preferrably 32-byte');
+                if(opt === "am"){
+                  if(txn.apar[opt].byteLength === undefined){
+                    this.throw(4300, 'apar.am must be a UintArray, preferrably 32-byte');
+                  }
                 }
-              }
-              if(opt === "m" || opt === "r" || opt === "f" || opt === "c"){
-                if(!algosdk.isValidAddress(txn.apar[opt])){
-                  this.throw(4300, 'apar.'+opt+' must be a valid address');
+                if(opt === "m" || opt === "r" || opt === "f" || opt === "c"){
+                  if(!algosdk.isValidAddress(txn.apar[opt])){
+                    this.throw(4300, 'apar.'+opt+' must be a valid address');
+                  }
                 }
               }
             }
@@ -317,6 +323,6 @@ class TxnVerifer{
   }
   throw(code, message){
     this.errorCheck.valid=false;
-    this.errorCheck.error+={code:code,message:message};
+    this.errorCheck.error.push({code:code,message:message});
   }
 }
